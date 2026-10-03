@@ -14,7 +14,7 @@ A Signal never counts as completed Work on its own. Changi does not launch agent
 
 ## Install
 
-On Linux, with Node.js 18+ and Python 3.10+ installed:
+Linux is the sole supported platform for v0.1.0. Install Node.js 18+ and Python 3.10+ first:
 
 ```sh
 npm install --global @agentbus/changi
@@ -40,6 +40,8 @@ changi --version               # installed package version
 `q` or Ctrl-C detaches from the monitor. Without a TTY, `changi` prints JSON status and leaves the daemon running. Idle daemons shut down after four hours without a client request; `CHANGI_IDLE_SECONDS` can set a positive alternate timeout.
 
 Changi stores its ledger, socket, PID, and lock inside the selected workspace's `.changi/` directory. It also stores a small workspace registry at `${XDG_CONFIG_HOME:-~/.config}/changi/workspaces.json`. These files are owner-only. Stopping the daemon leaves `events.db` intact.
+
+Run `changi stop` before uninstalling the npm package. Uninstalling removes the command but leaves workspace ledgers and the registry on disk; Changi never deletes those records implicitly.
 
 Changi never edits `.gitignore` or Git configuration during startup. If `.changi/` is unignored, it prints an advisory. To add an ignore rule explicitly, run `changi init --git-ignore` or `changi init --exclude` to preview the change, then rerun with `--yes` to apply it. In an unignored repository, `.changi/` will appear as an untracked directory.
 

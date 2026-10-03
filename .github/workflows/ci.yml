@@ -29,3 +29,6 @@ jobs:
           "$install_dir/bin/changi" --help
           "$install_dir/bin/changi" --version
           "$install_dir/bin/changi" init --help
+          if CHANGI_PYTHON=/no/such/python "$install_dir/bin/changi" --help; then
+            exit 1
+          fi

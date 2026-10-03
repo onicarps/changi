@@ -289,6 +289,13 @@ class ChangiTests(unittest.TestCase):
         output = self.run_command("--version", requires_socket=False).stdout.strip()
         self.assertEqual(output, f"changi {version}")
 
+    def test_workspace_argument_works_before_and_after_command(self) -> None:
+        subprocess.run(["git", "init", "-q", str(self.workspace)], check=True, capture_output=True)
+        before = self.run_command("init", "--git-ignore", "--dry-run", requires_socket=False)
+        after = self.run_command("init", "--workspace", str(self.workspace), "--git-ignore", "--dry-run", requires_socket=False)
+        self.assertEqual(before.stdout, after.stdout)
+        self.assertFalse((self.workspace / ".gitignore").exists())
+
 
 if __name__ == "__main__":
     unittest.main()
