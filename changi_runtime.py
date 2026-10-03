@@ -327,12 +327,24 @@ def append_event(
     if causation_id is not None and causation_id <= 0:
         raise ChangiError("causation_id must be a positive event_id")
     normalized, _ = payload_with_receipt_diagnostic(payload)
+    extension = normalized.get("changi")
+    is_signal = isinstance(extension, dict) and extension.get("kind") == "signal"
+    signal_state = extension.get("state", "pending") if is_signal else None
+    if is_signal and signal_state not in {"pending", "claimed", "cleared", "expired"}:
+        raise ChangiError("signal state must be pending, claimed, cleared, or expired")
     try:
         with connection:
             if causation_id is not None:
                 exists = connection.execute("SELECT 1 FROM events WHERE event_id = ?", (causation_id,)).fetchone()
                 if exists is None:
                     raise ChangiError(f"causation_id does not exist: {causation_id}")
+            if is_signal and signal_state != "pending":
+                if causation_id is None:
+                    raise ChangiError("signal state changes require a causal signal event")
+                parent = event_by_id(connection, causation_id)
+                parent_extension = parent["payload"].get("changi")
+                if not isinstance(parent_extension, dict) or parent_extension.get("kind") != "signal":
+                    raise ChangiError("signal state changes require a causal signal event")
             cursor = connection.execute(
                 "INSERT INTO events(topic, producer_id, timestamp, schema_version, payload, causation_id) VALUES (?, ?, ?, ?, ?, ?)",
                 (
@@ -374,9 +386,13 @@ def event_from_row(row: tuple[Any, ...]) -> dict[str, Any]:
 def ledger_status(connection: sqlite3.Connection, *, pid: int, started_at: str, instance_id: str) -> dict[str, Any]:
     record_count = 0
     signals = {"pending": 0, "claimed": 0, "cleared": 0, "expired": 0}
+    signal_roots: dict[int, int] = {}
+    signal_current: dict[int, str] = {}
     verified_work = 0
     in_flight_work = 0
-    for (payload_text,) in connection.execute("SELECT payload FROM events"):
+    for event_id, causation_id, payload_text in connection.execute(
+        "SELECT event_id, causation_id, payload FROM events ORDER BY event_id"
+    ):
         record_count += 1
         payload = json.loads(payload_text)
         extension = payload.get("changi") if isinstance(payload, dict) else None
@@ -385,13 +401,17 @@ def ledger_status(connection: sqlite3.Connection, *, pid: int, started_at: str, 
         if extension.get("kind") == "signal":
             state = extension.get("state", "pending")
             if state in signals:
-                signals[state] += 1
+                root = event_id if state == "pending" else signal_roots.get(causation_id, event_id)
+                signal_roots[event_id] = root
+                signal_current[root] = state
         if extension.get("kind") == "work_receipt" and extension.get("receipt_valid") is True:
             receipt = payload.get("work_receipt", {})
             if isinstance(receipt, dict) and receipt.get("state") == "in_flight":
                 in_flight_work += 1
             else:
                 verified_work += 1
+    for state in signal_current.values():
+        signals[state] += 1
     last = connection.execute("SELECT timestamp FROM events ORDER BY event_id DESC LIMIT 1").fetchone()
     return {
         "daemon": {"pid": pid, "instance_id": instance_id, "started_at": started_at, "protocol_version": PROTOCOL_VERSION},

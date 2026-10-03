@@ -121,6 +121,51 @@ class ChangiTests(unittest.TestCase):
         self.assertEqual(stat.S_IMODE((self.workspace / ".changi").stat().st_mode), 0o700)
         self.assertEqual(stat.S_IMODE((self.workspace / ".changi" / "events.db").stat().st_mode), 0o600)
 
+    def test_signal_counts_follow_latest_causal_state(self) -> None:
+        state = state_for(self.workspace)
+        connection = sqlite_connection(state)
+        try:
+            pending = append_event(
+                connection,
+                topic="attention",
+                producer_id="test",
+                payload={"changi": {"kind": "signal", "state": "pending"}},
+                causation_id=None,
+            )
+            claimed = append_event(
+                connection,
+                topic="attention.claimed",
+                producer_id="test",
+                payload={"changi": {"kind": "signal", "state": "claimed"}},
+                causation_id=pending["event_id"],
+            )
+            halfway = ledger_status(connection, pid=1, started_at="now", instance_id="test")
+            self.assertEqual(halfway["signal"]["pending_count"], 0)
+            self.assertEqual(halfway["signal"]["claimed_count"], 1)
+            append_event(
+                connection,
+                topic="attention.cleared",
+                producer_id="test",
+                payload={"changi": {"kind": "signal", "state": "cleared"}},
+                causation_id=claimed["event_id"],
+            )
+            status = ledger_status(connection, pid=1, started_at="now", instance_id="test")
+            self.assertEqual(status["record"]["count"], 3)
+            self.assertEqual(status["signal"]["pending_count"], 0)
+            self.assertEqual(status["signal"]["claimed_count"], 0)
+            self.assertEqual(status["signal"]["cleared_count"], 1)
+            self.assertEqual(status["work"]["verified_count"], 0)
+            with self.assertRaisesRegex(ChangiError, "causal signal"):
+                append_event(
+                    connection,
+                    topic="orphan.claim",
+                    producer_id="test",
+                    payload={"changi": {"kind": "signal", "state": "claimed"}},
+                    causation_id=None,
+                )
+        finally:
+            connection.close()
+
     def test_core_envelope_and_plane_separation(self) -> None:
         self.status()
         signal_event = json.loads(
