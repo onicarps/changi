@@ -192,6 +192,25 @@ class ChangiTests(unittest.TestCase):
         finally:
             connection.close()
 
+    def test_linked_pending_rejects_non_signal_parent(self) -> None:
+        connection = sqlite_connection(state_for(self.workspace))
+        try:
+            record = append_event(
+                connection, topic="note", producer_id="test",
+                payload={"message": "not a signal"}, causation_id=None,
+            )
+            with self.assertRaisesRegex(ChangiError, "signal state changes require a causal signal event"):
+                append_event(
+                    connection, topic="attention", producer_id="test",
+                    payload={"changi": {"kind": "signal", "state": "pending"}},
+                    causation_id=record["event_id"],
+                )
+            status = ledger_status(connection, pid=1, started_at="now", instance_id="test")
+            self.assertEqual(status["record"]["count"], 1)
+            self.assertEqual(status["signal"]["pending_count"], 0)
+        finally:
+            connection.close()
+
     def test_core_envelope_and_plane_separation(self) -> None:
         self.status()
         signal_event = json.loads(

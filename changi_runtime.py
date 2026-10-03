@@ -338,9 +338,9 @@ def append_event(
                 exists = connection.execute("SELECT 1 FROM events WHERE event_id = ?", (causation_id,)).fetchone()
                 if exists is None:
                     raise ChangiError(f"causation_id does not exist: {causation_id}")
-            if is_signal and signal_state != "pending":
-                if causation_id is None:
-                    raise ChangiError("signal state changes require a causal signal event")
+            if is_signal and signal_state != "pending" and causation_id is None:
+                raise ChangiError("signal state changes require a causal signal event")
+            if is_signal and causation_id is not None:
                 parent = event_by_id(connection, causation_id)
                 parent_extension = parent["payload"].get("changi")
                 if not isinstance(parent_extension, dict) or parent_extension.get("kind") != "signal":
