@@ -4,12 +4,10 @@
   "description": "Local-first terminal monitor for agent events, attention, and verified work",
   "license": "MIT",
   "bin": {
-    "changi": "bin/changi.js",
-    "changid": "bin/changid.js"
+    "changi": "bin/changi.js"
   },
   "files": [
     "bin/changi.js",
-    "bin/changid.js",
     "changi",
     "changid",
     "changi_runtime.py",

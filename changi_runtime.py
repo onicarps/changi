@@ -58,7 +58,10 @@ def utc_now() -> str:
 
 
 def canonical_workspace(value: str | Path) -> Path:
-    root = Path(value).expanduser().resolve(strict=True)
+    try:
+        root = Path(value).expanduser().resolve(strict=True)
+    except OSError as exc:
+        raise ChangiError(f"workspace is unavailable: {value}: {exc.strerror}") from exc
     if not root.is_dir():
         raise ChangiError(f"workspace is not a directory: {root}")
     return root
@@ -804,21 +807,23 @@ def cli_main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="changi", description="Changi local-first terminal event companion")
     parser.add_argument("--version", action="version", version=f"changi {package_version()}")
     parser.add_argument("--workspace", default=os.getcwd(), help="workspace root (default: current directory)")
+    common_parser = argparse.ArgumentParser(add_help=False)
+    common_parser.add_argument("--workspace", default=argparse.SUPPRESS, help="workspace root")
     subparsers = parser.add_subparsers(dest="command")
-    status_parser = subparsers.add_parser("status", help="show daemon and plane health")
+    status_parser = subparsers.add_parser("status", parents=[common_parser], help="show daemon and plane health")
     status_parser.add_argument("--json", action="store_true", help="emit machine-readable health")
-    log_parser = subparsers.add_parser("log", help="show newest-first Record entries")
+    log_parser = subparsers.add_parser("log", parents=[common_parser], help="show newest-first Record entries")
     log_parser.add_argument("--limit", type=int, default=50)
-    emit_parser = subparsers.add_parser("emit", help="append one locally validated Record")
+    emit_parser = subparsers.add_parser("emit", parents=[common_parser], help="append one locally validated Record")
     emit_parser.add_argument("topic")
     emit_parser.add_argument("payload", nargs="?")
     emit_parser.add_argument("--producer-id", default="user")
     emit_parser.add_argument("--causation-id", type=int)
-    stop_parser = subparsers.add_parser("stop", help="stop a workspace-local daemon")
+    stop_parser = subparsers.add_parser("stop", parents=[common_parser], help="stop a workspace-local daemon")
     stop_parser.add_argument("--all", action="store_true")
     stop_parser.add_argument("--yes", action="store_true")
-    subparsers.add_parser("list-all", help="list registered workspaces")
-    init_parser = subparsers.add_parser("init", help="explicitly configure a Git ignore rule")
+    subparsers.add_parser("list-all", parents=[common_parser], help="list registered workspaces")
+    init_parser = subparsers.add_parser("init", parents=[common_parser], help="explicitly configure a Git ignore rule")
     init_target = init_parser.add_mutually_exclusive_group(required=True)
     init_target.add_argument("--git-ignore", action="store_true")
     init_target.add_argument("--exclude", action="store_true")

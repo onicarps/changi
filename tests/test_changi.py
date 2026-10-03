@@ -10,6 +10,7 @@ import time
 import unittest
 import socket
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -268,7 +269,8 @@ class ChangiTests(unittest.TestCase):
         state = state_for(self.workspace)
         state.pid.write_text('{"pid":"not-a-number","start_identity":"123"}', encoding="utf-8")
         state.socket.write_text("stale", encoding="utf-8")
-        self.assertTrue(stop_workspace(self.workspace))
+        with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": str(self.config)}):
+            self.assertTrue(stop_workspace(self.workspace))
         self.assertFalse(state.socket.exists())
         self.assertFalse(state.pid.exists())
 
