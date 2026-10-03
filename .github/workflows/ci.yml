@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 -m unittest discover -s tests -v
+      - run: npm pack --dry-run
+      - name: Test installed package
+        shell: bash
+        run: |
+          package_tarball=$(npm pack --silent)
+          install_dir=$(mktemp -d)
+          npm install --global --prefix "$install_dir" "$PWD/$package_tarball"
+          "$install_dir/bin/changi" --help
+          "$install_dir/bin/changi" --version
+          "$install_dir/bin/changid" --version
+          "$install_dir/bin/changi" init --help

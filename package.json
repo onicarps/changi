@@ -1,0 +1,38 @@
+{
+  "name": "@agentbus/changi",
+  "version": "0.1.0",
+  "description": "Local-first terminal monitor for agent events, attention, and verified work",
+  "license": "MIT",
+  "bin": {
+    "changi": "bin/changi.js",
+    "changid": "bin/changid.js"
+  },
+  "files": [
+    "bin/changi.js",
+    "bin/changid.js",
+    "changi",
+    "changid",
+    "changi_runtime.py",
+    "README.md",
+    "LICENSE"
+  ],
+  "os": ["linux"],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "python3 -m unittest discover -s tests -v"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/onicarps/changi.git"
+  },
+  "homepage": "https://github.com/onicarps/changi",
+  "bugs": {
+    "url": "https://github.com/onicarps/changi/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

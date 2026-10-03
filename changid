@@ -1,0 +1,8 @@
+#!/usr/bin/env python3
+"""Changi daemon entrypoint."""
+
+from changi_runtime import daemon_main
+
+
+if __name__ == "__main__":
+    raise SystemExit(daemon_main())

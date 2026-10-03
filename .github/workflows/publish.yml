@@ -1,0 +1,43 @@
+name: Publish npm
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Check tag and package version
+        shell: bash
+        run: |
+          package_version=$(node -p "require('./package.json').version")
+          test "${GITHUB_REF_NAME}" = "v${package_version}"
+      - run: python3 -m unittest discover -s tests -v
+      - run: npm install --global npm@latest
+      - name: Check whether version is already published
+        id: availability
+        shell: bash
+        run: |
+          package_name=$(node -p "require('./package.json').name")
+          package_version=$(node -p "require('./package.json').version")
+          if npm view "${package_name}@${package_version}" version >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.availability.outputs.published == 'false'
+        run: npm publish --access public
