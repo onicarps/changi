@@ -401,7 +401,7 @@ def ledger_status(connection: sqlite3.Connection, *, pid: int, started_at: str, 
         if extension.get("kind") == "signal":
             state = extension.get("state", "pending")
             if state in signals:
-                root = event_id if state == "pending" else signal_roots.get(causation_id, event_id)
+                root = signal_roots.get(causation_id, event_id)
                 signal_roots[event_id] = root
                 signal_current[root] = state
         if extension.get("kind") == "work_receipt" and extension.get("receipt_valid") is True:

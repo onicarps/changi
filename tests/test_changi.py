@@ -166,6 +166,32 @@ class ChangiTests(unittest.TestCase):
         finally:
             connection.close()
 
+    def test_linked_pending_keeps_one_signal_root(self) -> None:
+        connection = sqlite_connection(state_for(self.workspace))
+        try:
+            pending = append_event(
+                connection, topic="attention", producer_id="test",
+                payload={"changi": {"kind": "signal", "state": "pending"}}, causation_id=None,
+            )
+            repeated = append_event(
+                connection, topic="attention", producer_id="test",
+                payload={"changi": {"kind": "signal", "state": "pending"}},
+                causation_id=pending["event_id"],
+            )
+            status = ledger_status(connection, pid=1, started_at="now", instance_id="test")
+            self.assertEqual(status["record"]["count"], 2)
+            self.assertEqual(status["signal"]["pending_count"], 1)
+            append_event(
+                connection, topic="attention.cleared", producer_id="test",
+                payload={"changi": {"kind": "signal", "state": "cleared"}},
+                causation_id=repeated["event_id"],
+            )
+            status = ledger_status(connection, pid=1, started_at="now", instance_id="test")
+            self.assertEqual(status["signal"]["pending_count"], 0)
+            self.assertEqual(status["signal"]["cleared_count"], 1)
+        finally:
+            connection.close()
+
     def test_core_envelope_and_plane_separation(self) -> None:
         self.status()
         signal_event = json.loads(
